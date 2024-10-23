@@ -29,7 +29,11 @@ constexpr int32_t kWarpSize = 32;
 //Simple data structure to represent 4 pairs of bfloat16s, used for vectorized dequantization
 //https://github.com/pytorch/pytorch/blob/b6689e0fb83a1578959ab0d9c6d2d9e11f7df21a/aten/src/ATen/native/cuda/int4mm.cu#L178-L180
 struct __align__(16) bf16x2x4 {
+#if defined(USE_ROCM)
+  __hip_bfloat162 vals[4];
+#else
   __nv_bfloat162 vals[4];
+#endif
 };
 
 //Copied from https://github.com/pytorch/pytorch/blob/b6689e0fb83a1578959ab0d9c6d2d9e11f7df21a/aten/src/ATen/native/cuda/int4mm.cu#L195C1-L241C1
