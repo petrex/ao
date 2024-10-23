@@ -170,8 +170,8 @@ __global__ void _dequantize_int4_kernel(
       int qgroup = ks[0] /  groupSize;
 #if defined(USE_ROCM)
       __hip_bfloat162 scale2, zero2;  // Declare variables outside if-else block
-      if (scales_and_zeros.has_value()) {
-        auto& sz = scales_and_zeros.value();  // Get reference first
+      if (scales_and_zeros) {  // Use operator bool() instead of has_value()
+        const auto& sz = *scales_and_zeros;  // Dereference the optional directly
         const __hip_bfloat16 *pSZ = reinterpret_cast<const __hip_bfloat16*>(&sz[qgroup][n0][0]);
         scale2 = __bfloat162bfloat162(pSZ[0]);
         zero2 = __bfloat162bfloat162(pSZ[1]);
@@ -181,8 +181,9 @@ __global__ void _dequantize_int4_kernel(
       }
 #else
       __nv_bfloat162 scale2, zero2;  // Declare variables outside if-else block
-      if (scales_and_zeros.has_value()) {
-        const __nv_bfloat16 *pSZ = reinterpret_cast<const __nv_bfloat16*>(&scales_and_zeros.value()[qgroup][n0][0]);
+      if (scales_and_zeros) {  // Use operator bool() instead of has_value()
+        const auto& sz = *scales_and_zeros;  // Dereference the optional directly
+        const __nv_bfloat16 *pSZ = reinterpret_cast<const __nv_bfloat16*>(&sz[qgroup][n0][0]);
         scale2 = __bfloat162bfloat162(pSZ[0]);
         zero2 = __bfloat162bfloat162(pSZ[1]);
       } else {
