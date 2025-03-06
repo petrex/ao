@@ -350,8 +350,8 @@ def get_extensions():
             )
 
             # Check ROCm GPU architecture compatibility
-            gpu_arch = torch.cuda.get_device_properties(0).name
-            if gpu_arch != "gfx942":
+            gpu_arch = torch.cuda.get_device_properties(0).gcnArchName
+            if "gfx942" not in gpu_arch:
                 print(f"Warning: Unsupported ROCm GPU architecture: {gpu_arch}")
                 print(
                     "Currently only gfx942 is supported. Skipping compilation of ROCm extensions"
@@ -372,18 +372,6 @@ def get_extensions():
             )
         )
         sources = [s for s in sources if s not in cutlass_sources]
-
-    # TOOD: Remove this and use what CUDA has once we fix all the builds.
-    if IS_ROCM and use_cuda:
-        # Add ROCm GPU architecture check
-        gpu_arch = torch.cuda.get_device_properties(0).gcnArchName
-        if gpu_arch != "gfx942":
-            print(f"Warning: Unsupported ROCm GPU architecture: {gpu_arch}")
-            print(
-                "Currently only gfx942 is supported. Skipping compilation of ROCm extensions"
-            )
-            return None
-        sources += hip_sources
 
     if len(sources) == 0:
         return None
