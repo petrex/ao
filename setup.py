@@ -249,22 +249,17 @@ def get_extensions():
     if debug_mode:
         print("Compiling in debug mode")
 
-    if not torch.cuda.is_available():
-        print(
-            "PyTorch GPU support is not available. Skipping compilation of CUDA extensions"
-        )
+    use_cuda = torch.cuda.is_available() and (CUDA_HOME is not None or ROCM_HOME is not None)
+    
+    if use_cuda:
+        print("Building with CUDA/ROCm support")
+    else:
+        if not torch.cuda.is_available():
+            print("PyTorch GPU support is not available. Building CPU-only version.")
+        elif CUDA_HOME is None and ROCM_HOME is None:
+            print("CUDA/ROCm toolkit not found. Please install CUDA toolkit or ROCm.")
+            print("Building CPU-only version.")
 
-    if (CUDA_HOME is None and ROCM_HOME is None) and torch.cuda.is_available():
-        print(
-            "CUDA toolkit or ROCm is not available. Skipping compilation of CUDA extensions"
-        )
-        print(
-            "If you'd like to compile CUDA extensions locally please install the cudatoolkit from https://anaconda.org/nvidia/cuda-toolkit"
-        )
-
-    use_cuda = torch.cuda.is_available() and (
-        CUDA_HOME is not None or ROCM_HOME is not None
-    )
     extension = CUDAExtension if use_cuda else CppExtension
 
     extra_link_args = []
@@ -312,6 +307,7 @@ def get_extensions():
                 cutlass_sources = [s for s in cuda_sources if "cutlass" in s]
                 cuda_sources = [s for s in cuda_sources if s not in cutlass_sources]
             sources += cuda_sources
+            print(f"Found {len(cuda_sources)} CUDA source files")
         else:
             # ROCm sources
             extensions_hip_dir = os.path.join(
@@ -322,19 +318,17 @@ def get_extensions():
             )
 
             # Check ROCm GPU architecture compatibility
-            gpu_arch = torch.cuda.get_device_properties(0).gcnArchName
-            if "gfx942" not in gpu_arch:
-                print(f"Warning: Unsupported ROCm GPU architecture: {gpu_arch}")
-                print(
-                    "Currently only gfx942 is supported. Skipping compilation of ROCm extensions"
-                )
-                return None
-            sources += hip_sources
+            if torch.cuda.is_available():  # Only check if CUDA/ROCm is available
+                gpu_arch = torch.cuda.get_device_properties(0).gcnArchName
+                if "gfx942" not in gpu_arch:
+                    print(f"Warning: Unsupported ROCm GPU architecture: {gpu_arch}")
+                    print("Currently only gfx942 is supported. Building without ROCm extensions")
+                else:
+                    sources += hip_sources
+                    print(f"Found {len(hip_sources)} ROCm source files")
 
-    # Return None if no sources found
-    if not sources:
-        return None
-
+    print(f"Building with {len(sources)} source files")
+    
     ext_modules = []
     if len(sources) > 0:
         ext_modules.append(
