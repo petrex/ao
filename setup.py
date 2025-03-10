@@ -291,43 +291,54 @@ def get_extensions():
     # Get base directory and source paths
     extensions_dir = os.path.join(cwd, "torchao", "csrc")
     extensions_cuda_dir = os.path.join(extensions_dir, "cuda")
+    
+    print(f"Looking for sources in: {extensions_dir}")
+    print(f"Looking for CUDA sources in: {extensions_cuda_dir}")
 
     # Collect C++ source files
     sources = list(glob.glob(os.path.join(extensions_dir, "**/*.cpp"), recursive=True))
+    print(f"Found {len(sources)} C++ source files")
 
     # Collect CUDA/ROCm source files if needed
     if use_cuda:
         if not IS_ROCM:
             # Regular CUDA sources
-            cuda_sources = list(
-                glob.glob(os.path.join(extensions_cuda_dir, "**/*.cu"), recursive=True)
-            )
+            cuda_pattern = os.path.join(extensions_cuda_dir, "**", "*.cu")
+            print(f"Searching for CUDA files with pattern: {cuda_pattern}")
+            cuda_sources = list(glob.glob(cuda_pattern, recursive=True))
+            
+            if not cuda_sources:
+                print("No CUDA sources found. Checking if directory exists...")
+                if os.path.exists(extensions_cuda_dir):
+                    print(f"CUDA directory exists. Contents: {os.listdir(extensions_cuda_dir)}")
+                else:
+                    print("CUDA directory does not exist!")
+            
             # Remove CUTLASS-based kernels if not using CUTLASS
             if not use_cutlass:
                 cutlass_sources = [s for s in cuda_sources if "cutlass" in s]
                 cuda_sources = [s for s in cuda_sources if s not in cutlass_sources]
             sources += cuda_sources
-            print(f"Found {len(cuda_sources)} CUDA source files")
+            print(f"Found {len(cuda_sources)} CUDA source files: {cuda_sources}")
         else:
             # ROCm sources
             extensions_hip_dir = os.path.join(
                 extensions_dir, "cuda", "sparse_marlin", "tensor_core_tiled_layout"
             )
-            hip_sources = list(
-                glob.glob(os.path.join(extensions_hip_dir, "*.cu"), recursive=True)
-            )
+            hip_pattern = os.path.join(extensions_hip_dir, "*.cu")
+            print(f"Searching for ROCm files with pattern: {hip_pattern}")
+            hip_sources = list(glob.glob(hip_pattern, recursive=True))
 
-            # Check ROCm GPU architecture compatibility
-            if torch.cuda.is_available():  # Only check if CUDA/ROCm is available
+            if torch.cuda.is_available():
                 gpu_arch = torch.cuda.get_device_properties(0).gcnArchName
                 if "gfx942" not in gpu_arch:
                     print(f"Warning: Unsupported ROCm GPU architecture: {gpu_arch}")
                     print("Currently only gfx942 is supported. Building without ROCm extensions")
                 else:
                     sources += hip_sources
-                    print(f"Found {len(hip_sources)} ROCm source files")
+                    print(f"Found {len(hip_sources)} ROCm source files: {hip_sources}")
 
-    print(f"Building with {len(sources)} source files")
+    print(f"Building with {len(sources)} total source files")
     
     ext_modules = []
     if len(sources) > 0:
