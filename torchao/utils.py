@@ -6,10 +6,10 @@
 import functools
 import importlib
 import itertools
-import re
 import time
 from functools import reduce
 from importlib.metadata import version
+from packaging.version import Version
 from math import gcd
 from typing import Any, Callable, Optional
 
@@ -354,13 +354,8 @@ def _is_float8_type(dtype: torch.dtype) -> bool:
 
 
 def parse_version(version_string):
-    # Extract just the X.Y.Z part from the version string
-    match = re.match(r"(\d+\.\d+\.\d+)", version_string)
-    if match:
-        version = match.group(1)
-        return [int(x) for x in version.split(".")]
-    else:
-        raise ValueError(f"Invalid version string format: {version_string}")
+    """Return a :class:`Version` object for the given version string."""
+    return Version(version_string)
 
 
 def compare_versions(v1, v2):
@@ -768,7 +763,9 @@ def fill_defaults(args, n, defaults_tail):
 
 ## Deprecated, will be deleted in the future
 def _torch_version_at_least(min_version):
-    return is_fbcode() or version("torch") >= min_version
+    # Use the same implementation as :func:`torch_version_at_least` to handle
+    # development and local versions correctly.
+    return is_fbcode() or compare_versions(torch.__version__, min_version) >= 0
 
 
 # Supported AMD GPU Models and their LLVM gfx Codes:
